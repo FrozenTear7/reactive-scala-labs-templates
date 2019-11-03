@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CartActor {
-
   sealed trait Command
   case class AddItem(item: Any)    extends Command
   case class RemoveItem(item: Any) extends Command
@@ -23,7 +22,6 @@ object CartActor {
 }
 
 class CartActor extends Actor {
-
   private val log       = Logging(context.system, this)
   val cartTimerDuration = 5 seconds
 
@@ -36,5 +34,4 @@ class CartActor extends Actor {
   def nonEmpty(cart: Cart, timer: Cancellable): Receive = ???
 
   def inCheckout(cart: Cart): Receive = ???
-
 }

@@ -8,7 +8,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CheckoutFSM {
-
   object Status extends Enumeration {
     type Status = Value
     val NotStarted, SelectingDelivery, SelectingPaymentMethod, Cancelled, ProcessingPayment, Closed = Value
@@ -53,5 +52,4 @@ class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   when(Closed) {
     ???
   }
-
 }

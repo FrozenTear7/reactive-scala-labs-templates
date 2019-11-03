@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CartFSM {
-
   object Status extends Enumeration {
     type Status = Value
     val Empty, NonEmpty, InCheckout = Value
@@ -37,5 +36,4 @@ class CartFSM extends LoggingFSM[Status.Value, Cart] {
   when(InCheckout) {
     ???
   }
-
 }

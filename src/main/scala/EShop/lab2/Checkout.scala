@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Checkout {
-
   sealed trait Data
   case object Uninitialized                               extends Data
   case class SelectingDeliveryStarted(timer: Cancellable) extends Data
@@ -30,7 +29,6 @@ object Checkout {
 }
 
 class Checkout extends Actor {
-
   private val scheduler = context.system.scheduler
   private val log       = Logging(context.system, this)
 
@@ -48,5 +46,4 @@ class Checkout extends Actor {
   def cancelled: Receive = ???
 
   def closed: Receive = ???
-
 }
