@@ -42,12 +42,15 @@ class Checkout extends Actor {
   def paymentTimer: Cancellable             = scheduler.scheduleOnce(paymentTimerDuration, self, ExpirePayment)
 
   def receive: Receive = LoggingReceive.withLabel("receive") {
-    case StartCheckout => context.become(selectingDelivery(checkoutTimer))
+    case StartCheckout =>
+      log.info("Checkout started")
+      context.become(selectingDelivery(checkoutTimer))
   }
 
   def selectingDelivery(timer: Cancellable): Receive = LoggingReceive.withLabel("selectingDelivery") {
     case SelectDeliveryMethod(_) =>
       timer.cancel()
+      log.info("Selecting delivery method")
       context.become(selectingPaymentMethod(checkoutTimer))
 
     case ExpireCheckout | CancelCheckout =>
@@ -58,6 +61,7 @@ class Checkout extends Actor {
   def selectingPaymentMethod(timer: Cancellable): Receive = LoggingReceive.withLabel("selectingPaymentMethod") {
     case SelectPayment(_) =>
       timer.cancel()
+      log.info("Selecting payment method")
       context.become(processingPayment(paymentTimer))
 
     case ExpireCheckout | CancelCheckout =>
@@ -68,9 +72,10 @@ class Checkout extends Actor {
   def processingPayment(timer: Cancellable): Receive = LoggingReceive.withLabel("processingPayment") {
     case ReceivePayment =>
       timer.cancel()
+      log.info("Payment received")
       context.become(closed)
 
-    case ExpirePayment | CancelCheckout =>
+    case CancelCheckout | ExpirePayment =>
       timer.cancel()
       context.become(cancelled)
   }
