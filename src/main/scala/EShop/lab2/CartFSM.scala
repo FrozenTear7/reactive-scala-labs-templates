@@ -27,19 +27,25 @@ class CartFSM extends LoggingFSM[Status.Value, Cart] {
   startWith(Empty, Cart.empty)
 
   when(Empty) {
-    case Event(AddItem(item), cart: Cart) => goto(NonEmpty).using(cart.addItem(item))
+    case Event(AddItem(item), cart: Cart) =>
+      val newCart = cart.addItem(item)
+      goto(NonEmpty).using(newCart)
   }
 
   when(NonEmpty, stateTimeout = cartTimerDuration) {
     case Event(StateTimeout, _) => goto(Empty).using(Cart.empty)
-    case Event(RemoveItem(item), cart: Cart) if cart.contains(item) && cart.size == 1 =>
-      goto(Empty).using(cart.removeItem(item))
+    case Event(event: RemoveItem, cart: Cart) if cart.contains(event.item) && cart.size == 1 =>
+      val newCart = cart.removeItem(event.item)
+      goto(Empty).using(newCart)
 
     case Event(StartCheckout, cart: Cart) => goto(InCheckout).using(cart)
 
-    case Event(AddItem(item), cart: Cart) => stay.using(cart.addItem(item))
-    case Event(RemoveItem(item), cart: Cart) if cart.contains(item) && cart.size > 1 =>
-      stay.using(cart.removeItem(item))
+    case Event(event: AddItem, cart: Cart) =>
+      val newCart = cart.addItem(event.item)
+      stay.using(newCart)
+    case Event(event: RemoveItem, cart: Cart) if cart.contains(event.item) =>
+      val newCart = cart.removeItem(event.item)
+      stay.using(newCart)
   }
 
   when(InCheckout) {

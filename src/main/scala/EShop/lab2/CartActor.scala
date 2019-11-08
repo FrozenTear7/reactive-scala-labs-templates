@@ -34,25 +34,28 @@ class CartActor extends Actor {
 
   def empty: Receive = {
     case AddItem(item) =>
-      log.info("Checkout closed")
-      context.become(nonEmpty(new Cart(Seq(item)), scheduleTimer))
+      log.info("Item added to empty cart")
+      val cart = new Cart(List(item))
+      context.become(nonEmpty(cart, scheduleTimer))
   }
 
   def nonEmpty(cart: Cart, timer: Cancellable): Receive = {
     case AddItem(item) =>
       timer.cancel()
       log.info("Item added")
-      context.become(nonEmpty(cart.addItem(item), scheduleTimer))
+      val newCart = cart.addItem(item)
+      context.become(nonEmpty(newCart, scheduleTimer))
 
     case RemoveItem(item) if cart.contains(item) && cart.size == 1 =>
       timer.cancel()
       log.info("Item removed - cart is now empty")
       context.become(empty)
 
-    case RemoveItem(item) if cart.contains(item) && cart.size > 1 =>
+    case RemoveItem(item) if cart.contains(item) =>
       timer.cancel()
       log.info("Item removed")
-      context.become(nonEmpty(cart.removeItem(item), scheduleTimer))
+      val newCart = cart.removeItem(item)
+      context.become(nonEmpty(newCart, scheduleTimer))
 
     case StartCheckout =>
       timer.cancel()

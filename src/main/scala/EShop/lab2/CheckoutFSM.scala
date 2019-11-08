@@ -7,7 +7,6 @@ import EShop.lab2.Checkout.{
   ReceivePayment,
   SelectDeliveryMethod,
   SelectPayment,
-  SelectingDeliveryStarted,
   StartCheckout,
   Uninitialized
 }
@@ -35,8 +34,6 @@ class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   val checkoutTimerDuration: FiniteDuration = 1 seconds
   val paymentTimerDuration: FiniteDuration  = 1 seconds
 
-  private val scheduler = context.system.scheduler
-
   startWith(NotStarted, Uninitialized)
 
   when(NotStarted) {
@@ -44,21 +41,21 @@ class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   }
 
   when(SelectingDelivery, stateTimeout = checkoutTimerDuration) {
-    case Event(SelectDeliveryMethod(_), _) => goto(SelectingPaymentMethod)
+    case Event(_: SelectDeliveryMethod, _) => goto(SelectingPaymentMethod)
 
-    case Event(CancelCheckout | ExpireCheckout | StateTimeout, _) => goto(Cancelled)
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
   when(SelectingPaymentMethod, stateTimeout = checkoutTimerDuration) {
-    case Event(SelectPayment(_), _) => goto(ProcessingPayment)
+    case Event(_: SelectPayment, _) => goto(ProcessingPayment)
 
-    case Event(CancelCheckout | ExpireCheckout | StateTimeout, _) => goto(Cancelled)
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
   when(ProcessingPayment, stateTimeout = paymentTimerDuration) {
     case Event(ReceivePayment, _) => goto(Closed)
 
-    case Event(CancelCheckout | ExpireCheckout | StateTimeout, _) => goto(Cancelled)
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
   when(Cancelled) {
