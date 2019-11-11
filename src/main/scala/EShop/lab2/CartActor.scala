@@ -1,7 +1,7 @@
 package EShop.lab2
 
-import EShop.lab2.CartActor.{AddItem, CancelCheckout, CloseCheckout, ExpireCart, RemoveItem, StartCheckout}
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
+import EShop.lab2.CartActor._
+import akka.actor._
 import akka.event.Logging
 
 import scala.concurrent.duration._
@@ -16,11 +16,12 @@ object CartActor {
   case object StartCheckout        extends Command
   case object CancelCheckout       extends Command
   case object CloseCheckout        extends Command
+  case object GetItems             extends Command // command made to make testing easier
 
   sealed trait Event
   case class CheckoutStarted(checkoutRef: ActorRef) extends Event
 
-  def props: Props = Props(new CartActor())
+  def props() = Props(new CartActor())
 }
 
 class CartActor extends Actor {
@@ -34,47 +35,48 @@ class CartActor extends Actor {
 
   def empty: Receive = {
     case AddItem(item) =>
-      log.info("Item added to empty cart")
-      val cart = new Cart(List(item))
-      context.become(nonEmpty(cart, scheduleTimer))
+      val newCart = new Cart(List(item))
+      context become nonEmpty(newCart, scheduleTimer)
+
+    case GetItems =>
+      sender ! Cart.empty
   }
 
   def nonEmpty(cart: Cart, timer: Cancellable): Receive = {
     case AddItem(item) =>
       timer.cancel()
-      log.info("Item added")
       val newCart = cart.addItem(item)
-      context.become(nonEmpty(newCart, scheduleTimer))
+      context become nonEmpty(newCart, scheduleTimer)
 
     case RemoveItem(item) if cart.contains(item) && cart.size == 1 =>
       timer.cancel()
-      log.info("Item removed - cart is now empty")
-      context.become(empty)
+      context become empty
 
     case RemoveItem(item) if cart.contains(item) =>
       timer.cancel()
-      log.info("Item removed")
       val newCart = cart.removeItem(item)
-      context.become(nonEmpty(newCart, scheduleTimer))
+      context become nonEmpty(newCart, scheduleTimer)
 
     case StartCheckout =>
       timer.cancel()
-      log.info("Checkout started")
-      context.become(inCheckout(cart))
+      val checkoutRef = context.actorOf(Checkout.props(self))
+      checkoutRef ! Checkout.StartCheckout
+      sender ! CheckoutStarted(checkoutRef)
+      context become inCheckout(cart)
 
     case ExpireCart =>
       timer.cancel()
-      log.info("Cart expired")
-      context.become(empty)
+      context become empty
+
+    case GetItems =>
+      sender ! cart
   }
 
   def inCheckout(cart: Cart): Receive = {
     case CancelCheckout =>
-      log.info("Checkout cancelled")
-      context.become(nonEmpty(cart, scheduleTimer))
+      context become nonEmpty(cart, scheduleTimer)
 
     case CloseCheckout =>
-      log.info("Checkout closed")
-      context.become(empty)
+      context become empty
   }
 }
