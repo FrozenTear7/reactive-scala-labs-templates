@@ -1,13 +1,13 @@
 package EShop.lab2
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
-import akka.event.Logging
+import akka.event.{Logging, LoggingReceive}
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Checkout {
-
   sealed trait Data
   case object Uninitialized                               extends Data
   case class SelectingDeliveryStarted(timer: Cancellable) extends Data
@@ -26,27 +26,65 @@ object Checkout {
   case object CheckOutClosed                   extends Event
   case class PaymentStarted(payment: ActorRef) extends Event
 
-  def props(cart: ActorRef) = Props(new Checkout())
+  def props(cart: ActorRef): Props = Props(new Checkout())
 }
 
 class Checkout extends Actor {
+  import Checkout._
 
-  private val scheduler = context.system.scheduler
-  private val log       = Logging(context.system, this)
+  private val scheduler                           = context.system.scheduler
+  private val log                                 = Logging(context.system, this)
+  implicit val executionContext: ExecutionContext = context.system.dispatcher
 
-  val checkoutTimerDuration = 1 seconds
-  val paymentTimerDuration  = 1 seconds
+  val checkoutTimerDuration: FiniteDuration = 1.seconds
+  val paymentTimerDuration: FiniteDuration  = 1.seconds
+  def checkoutTimer: Cancellable            = scheduler.scheduleOnce(checkoutTimerDuration, self, ExpireCheckout)
+  def paymentTimer: Cancellable             = scheduler.scheduleOnce(paymentTimerDuration, self, ExpirePayment)
 
-  def receive: Receive = ???
+  def receive: Receive = LoggingReceive.withLabel("receive") {
+    case StartCheckout =>
+      log.info("Checkout started")
+      context.become(selectingDelivery(checkoutTimer))
+  }
 
-  def selectingDelivery(timer: Cancellable): Receive = ???
+  def selectingDelivery(timer: Cancellable): Receive = LoggingReceive.withLabel("selectingDelivery") {
+    case SelectDeliveryMethod(_) =>
+      timer.cancel()
+      log.info("Selecting delivery method")
+      context.become(selectingPaymentMethod(checkoutTimer))
 
-  def selectingPaymentMethod(timer: Cancellable): Receive = ???
+    case ExpireCheckout | CancelCheckout =>
+      timer.cancel()
+      context.become(cancelled)
+  }
 
-  def processingPayment(timer: Cancellable): Receive = ???
+  def selectingPaymentMethod(timer: Cancellable): Receive = LoggingReceive.withLabel("selectingPaymentMethod") {
+    case SelectPayment(_) =>
+      timer.cancel()
+      log.info("Selecting payment method")
+      context.become(processingPayment(paymentTimer))
 
-  def cancelled: Receive = ???
+    case ExpireCheckout | CancelCheckout =>
+      timer.cancel()
+      context.become(cancelled)
+  }
 
-  def closed: Receive = ???
+  def processingPayment(timer: Cancellable): Receive = LoggingReceive.withLabel("processingPayment") {
+    case ReceivePayment =>
+      timer.cancel()
+      log.info("Payment received")
+      context.become(closed)
 
+    case CancelCheckout | ExpirePayment =>
+      timer.cancel()
+      context.become(cancelled)
+  }
+
+  def cancelled: Receive = {
+    case _ => log.info("Checkout cancelled")
+  }
+
+  def closed: Receive = {
+    case _ => log.info("Checkout closed")
+  }
 }

@@ -1,6 +1,15 @@
 package EShop.lab2
 
-import EShop.lab2.Checkout.{Data, Uninitialized}
+import EShop.lab2.Checkout.{
+  CancelCheckout,
+  Data,
+  ExpireCheckout,
+  ReceivePayment,
+  SelectDeliveryMethod,
+  SelectPayment,
+  StartCheckout,
+  Uninitialized
+}
 import EShop.lab2.CheckoutFSM.Status
 import akka.actor.{ActorRef, LoggingFSM, Props}
 
@@ -8,7 +17,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object CheckoutFSM {
-
   object Status extends Enumeration {
     type Status = Value
     val NotStarted, SelectingDelivery, SelectingPaymentMethod, Cancelled, ProcessingPayment, Closed = Value
@@ -26,32 +34,35 @@ class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   val checkoutTimerDuration: FiniteDuration = 1 seconds
   val paymentTimerDuration: FiniteDuration  = 1 seconds
 
-  private val scheduler = context.system.scheduler
-
   startWith(NotStarted, Uninitialized)
 
   when(NotStarted) {
-    ???
+    case Event(StartCheckout, Uninitialized) => goto(SelectingDelivery)
   }
 
-  when(SelectingDelivery) {
-    ???
+  when(SelectingDelivery, stateTimeout = checkoutTimerDuration) {
+    case Event(_: SelectDeliveryMethod, _) => goto(SelectingPaymentMethod)
+
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
-  when(SelectingPaymentMethod) {
-    ???
+  when(SelectingPaymentMethod, stateTimeout = checkoutTimerDuration) {
+    case Event(_: SelectPayment, _) => goto(ProcessingPayment)
+
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
-  when(ProcessingPayment) {
-    ???
+  when(ProcessingPayment, stateTimeout = paymentTimerDuration) {
+    case Event(ReceivePayment, _) => goto(Closed)
+
+    case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
   when(Cancelled) {
-    ???
+    case _ => stay
   }
 
   when(Closed) {
-    ???
+    case _ => stay
   }
-
 }
