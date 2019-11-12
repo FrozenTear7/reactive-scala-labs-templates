@@ -1,10 +1,8 @@
 package EShop.lab2
 
-import EShop.lab2.CartActor.CloseCheckout
 import EShop.lab2.Checkout._
 import EShop.lab2.CheckoutFSM.Status
-import EShop.lab3.Payment
-import akka.actor._
+import akka.actor.{ActorRef, LoggingFSM, Props}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -15,10 +13,10 @@ object CheckoutFSM {
     val NotStarted, SelectingDelivery, SelectingPaymentMethod, Cancelled, ProcessingPayment, Closed = Value
   }
 
-  def props(cartActor: ActorRef) = Props(new CheckoutFSM(cartActor))
+  def props(cartActor: ActorRef) = Props(new CheckoutFSM)
 }
 
-class CheckoutFSM(cartActor: ActorRef) extends LoggingFSM[Status.Value, Data] {
+class CheckoutFSM extends LoggingFSM[Status.Value, Data] {
   import EShop.lab2.CheckoutFSM.Status._
 
   // useful for debugging, see: https://doc.akka.io/docs/akka/current/fsm.html#rolling-event-log
@@ -40,18 +38,13 @@ class CheckoutFSM(cartActor: ActorRef) extends LoggingFSM[Status.Value, Data] {
   }
 
   when(SelectingPaymentMethod, stateTimeout = checkoutTimerDuration) {
-    case Event(event: SelectPayment, _) =>
-      val paymentActor: ActorRef = context.system.actorOf(Payment.props(event.payment, sender, self))
-      sender ! PaymentStarted(paymentActor)
-      goto(ProcessingPayment)
+    case Event(_: SelectPayment, _) => goto(ProcessingPayment)
 
     case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }
 
   when(ProcessingPayment, stateTimeout = paymentTimerDuration) {
-    case Event(ReceivePayment, _) =>
-      cartActor ! CloseCheckout
-      goto(Closed)
+    case Event(ReceivePayment, _) => goto(Closed)
 
     case Event(CancelCheckout | StateTimeout, _) => goto(Cancelled)
   }

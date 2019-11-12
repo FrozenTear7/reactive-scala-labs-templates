@@ -44,8 +44,7 @@ class Checkout(cartActor: ActorRef) extends Actor {
   def paymentTimer: Cancellable             = scheduler.scheduleOnce(paymentTimerDuration, self, ExpirePayment)
 
   def receive: Receive = LoggingReceive.withLabel("receive") {
-    case StartCheckout =>
-      context become selectingDelivery(checkoutTimer)
+    case StartCheckout => context become selectingDelivery(checkoutTimer)
   }
 
   def selectingDelivery(timer: Cancellable): Receive = LoggingReceive.withLabel("selectingDelivery") {

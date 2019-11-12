@@ -69,7 +69,7 @@ class CartActor extends Actor {
       context become empty
 
     case GetItems =>
-      sender ! cart
+      sender ! cart.items
   }
 
   def inCheckout(cart: Cart): Receive = {

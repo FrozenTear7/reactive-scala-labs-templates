@@ -22,7 +22,7 @@ class CartTest
     val cartRef = TestActorRef(CartActor.props())
     cartRef ! CartActor.AddItem(testItem)
     cartRef ! CartActor.GetItems
-    expectMsg(Cart(List(testItem)))
+    expectMsg(List(testItem))
   }
 
   it should "be empty after adding and removing the same item" in {
@@ -38,7 +38,7 @@ class CartTest
   it should "start checkout" in {
     val testItem = "POGGERS"
 
-    val cartRef = TestActorRef(CartFSM.props())
+    val cartRef = TestActorRef(CartActor.props())
     cartRef ! CartActor.AddItem(testItem)
     cartRef ! CartActor.StartCheckout
     expectMsgPF() {
