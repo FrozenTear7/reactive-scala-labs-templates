@@ -22,18 +22,14 @@ class CheckoutTest
     val deliveryMethod = "AMAZON_PRIME"
     val paymentType    = "PAYPAL_OMEGALUL"
 
-    val checkout = TestActorRef(new Checkout(self))
+    val probe    = TestProbe()
+    val checkout = probe.childActorOf(Checkout.props(probe.ref))
 
     checkout ! Checkout.StartCheckout
     checkout ! Checkout.SelectDeliveryMethod(deliveryMethod)
     checkout ! Checkout.SelectPayment(paymentType)
+    checkout ! Checkout.ReceivePayment
 
-    val payment = expectMsgPF() {
-      case PaymentStarted(paymentService) => paymentService
-    }
-
-    payment ! DoPayment
-
-    expectMsg(CloseCheckout)
+    probe.expectMsg(CloseCheckout)
   }
 }

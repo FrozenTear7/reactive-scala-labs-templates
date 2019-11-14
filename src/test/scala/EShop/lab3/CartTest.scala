@@ -41,9 +41,6 @@ class CartTest
     val cartRef = TestActorRef(CartActor.props())
     cartRef ! CartActor.AddItem(testItem)
     cartRef ! CartActor.StartCheckout
-    expectMsgPF() {
-      case CartActor.CheckoutStarted(_) => ()
-      case _                            => fail
-    }
+    expectMsg(_: CartActor.CheckoutStarted)
   }
 }
