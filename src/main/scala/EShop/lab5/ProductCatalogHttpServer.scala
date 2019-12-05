@@ -3,7 +3,6 @@ package EShop.lab5
 import EShop.lab5.ProductCatalog.{GetItems, Items}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes.{InternalServerError, OK}
 import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -11,32 +10,27 @@ import com.typesafe.config.ConfigFactory
 import spray.json.RootJsonFormat
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+
 class ProductCatalogHttpServer(system: ActorSystem) extends HttpApp with SprayJsonSupport with JsonSupport {
   implicit val getItemsFormat: RootJsonFormat[GetItems]        = jsonFormat2(ProductCatalog.GetItems)
   implicit val itemFormat: RootJsonFormat[ProductCatalog.Item] = jsonFormat5(ProductCatalog.Item)
   implicit val itemsFormat: RootJsonFormat[Items]              = jsonFormat1(ProductCatalog.Items)
+
   import system.dispatcher
   implicit val timeout: Timeout = 5.seconds
+
   private val productCatalog =
     system.actorSelection("akka.tcp://ProductCatalog@127.0.0.1:2553/user/productcatalog").resolveOne()
 
-  override protected def routes: Route = pathPrefix("query") {
-    post {
-      pathEnd {
-        entity(as[GetItems]) {
-          getItems
+  override protected def routes: Route = {
+    path("items") {
+      post {
+        entity(as[GetItems]) { query =>
+          complete {
+            productCatalog.flatMap(actor => (actor ? query).mapTo[Items])
+          }
         }
       }
-    }
-  }
-
-  private def getItems(request: GetItems): Route = {
-    onComplete(productCatalog.flatMap(actor => (actor ? request).mapTo[Items])) {
-      case Failure(exception) =>
-        system.log.error(exception.getMessage)
-        complete(InternalServerError)
-      case Success(items) => complete(OK, items)
     }
   }
 }
